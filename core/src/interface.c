@@ -279,7 +279,7 @@ void interface_work(void *args)
         }
         struct processor *ptr = &(sys_ptr->processors[cpu_id]);
         buf[0] = '\0';
-        sprintf(buf, "{\"code\": 200, \"id\": %d, \"task_cnt\": %d, \"cur\": \"%p\"}", ptr->cores_id, ptr->tasks_cnt, ptr->cur);
+        sprintf(buf, "{\"code\": 200, \"id\": %d, \"task_cnt\": %d, \"cur\": %d}", ptr->cores_id, ptr->tasks_cnt, ptr->cur->pid);
         send(fd, buf, strlen(buf), 0);
         break;
     }
@@ -437,6 +437,10 @@ int suspend_process(int core_id)
     task->state = TASK_SUSPEND;
     pro->mid_schedule_status = 1;
     pthread_kill(pro->tid, SIGALRM); // suspend current process immediately
+
+    // try to notify the long scheduler work
+    do_long_schedule(JOB_COMPLETED);
+
     return 0;
 }
 
