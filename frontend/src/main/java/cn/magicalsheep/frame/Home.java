@@ -96,7 +96,7 @@ public class Home {
     private static final String[] jobResColumnNames = {"作业ID", "作业状态", "状态信息"};
     private static final String[] priorityQueueColumnNames = {"进程号", "作业ID", "进程状态", "优先级", "进程空间起始地址", "进程空间终止地址", "指令地址偏移量"};
     private static final String[] ioQueueColumnNames = {"进程号", "作业ID", "进程状态", "优先级", "进程空间起始地址", "进程空间终止地址", "指令地址偏移量"};
-    private static final String[] suspendQueueColumnNames = {"进程号", "作业ID", "进程状态", "优先级", "指令地址偏移量"};
+    private static final String[] suspendQueueColumnNames = {"进程号", "作业ID", "进程状态", "优先级", "指令地址偏移量", "所属处理机号"};
     private static final String[] userMemoryColumnNames = {"所属进程号", "块起始地址", "块终止地址", "大小（字节数）"};
     private static final String[] systemMemoryColumnNames = {"所属进程号", "块起始地址", "块终止地址", "大小（字节数）"};
     private static final String[] jobCodeColumnNames = {"指令类型", "指令执行时长"};
@@ -136,6 +136,7 @@ public class Home {
 
         poolQueue.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         jobResQueue.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        jobResQueue.setAutoCreateRowSorter(true);
         priorityQueue.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         ioQueue.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         suspendQueue.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -309,6 +310,7 @@ public class Home {
             };
             info[3] = task.getPrior();
             info[4] = task.getCp();
+            info[5] = task.getProcessor();
             suspendQueueModel.addRow(info);
         }
         suspendQueueModel.fireTableDataChanged();
