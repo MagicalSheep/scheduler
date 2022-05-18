@@ -171,22 +171,20 @@ void interface_work(void *context)
             int cpu_id = strtol(s, &tmp, 10);
             if (cpu_id >= sys_ptr->cpu_cnt)
             {
-                zstr_send(receiver, "{\"data\": {}}");
+                zstr_send(receiver, "[]");
                 break;
             }
             struct processor *pros = &(sys_ptr->processors[cpu_id]);
             struct task_struct_head *list = pros->rq;
             size_t len;
             char buf[BUF_SIZE];
-            buf[0] = '\0';
-            strcat(buf, "{\"data\": {");
+            buf[0] = '[';
+            buf[1] = '\0';
             char task_info[512];
             for (int i = MAX_PRIOR; i >= 0; i--)
             {
                 if (list[i].size == 0)
                     continue;
-                sprintf(task_info, "%d: [", i);
-                strcat(buf, task_info);
                 struct task_struct_list *ptr = list[i].head;
                 while (ptr != NULL)
                 {
@@ -196,19 +194,14 @@ void interface_work(void *context)
                     strcat(buf, task_info);
                     ptr = ptr->nex;
                 }
-                len = strlen(buf);
-                buf[len - 1] = ']';
-                buf[len] = ',';
             }
             len = strlen(buf);
-            if (len == 10)
+            if (len == 1)
             {
-                zstr_send(receiver, "{}");
+                zstr_send(receiver, "[]");
                 break;
             }
-            buf[len - 1] = '}';
-            buf[len] = '}';
-            buf[len + 1] = '\0';
+            buf[len - 1] = ']';
             zstr_send(receiver, buf);
             break;
         }
