@@ -230,7 +230,9 @@
                             <rowspec value="center:d:noGrow"/>
                             <colspec value="fill:8px:noGrow"/>
                             <colspec value="left:8px:noGrow"/>
-                            <colspec value="fill:d:grow"/>
+                            <colspec value="fill:d:noGrow"/>
+                            <colspec value="left:4px:noGrow"/>
+                            <colspec value="fill:max(d;4px):grow"/>
                             <colspec value="left:4dlu:noGrow"/>
                             <colspec value="fill:max(d;4px):noGrow"/>
                             <constraints>
@@ -247,6 +249,15 @@
                                 </constraints>
                                 <properties>
                                   <text value="系统空间内存"/>
+                                </properties>
+                              </component>
+                              <component id="39ff0" class="javax.swing.JLabel" binding="sysMemLabel">
+                                <constraints>
+                                  <grid row="0" column="4" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                                  <forms/>
+                                </constraints>
+                                <properties>
+                                  <text value="（0 Bytes / 0 Bytes）"/>
                                 </properties>
                               </component>
                             </children>
@@ -273,7 +284,7 @@
                                 <properties>
                                   <preferredSize width="146" height="4"/>
                                   <stringPainted value="true"/>
-                                  <value value="20"/>
+                                  <value value="0"/>
                                 </properties>
                               </component>
                             </children>
@@ -300,7 +311,7 @@
                                 <properties>
                                   <preferredSize width="146" height="4"/>
                                   <stringPainted value="true"/>
-                                  <value value="20"/>
+                                  <value value="0"/>
                                 </properties>
                               </component>
                             </children>
@@ -309,7 +320,11 @@
                             <rowspec value="center:d:noGrow"/>
                             <colspec value="fill:8px:noGrow"/>
                             <colspec value="left:8px:noGrow"/>
-                            <colspec value="fill:d:grow"/>
+                            <colspec value="fill:d:noGrow"/>
+                            <colspec value="left:4px:noGrow"/>
+                            <colspec value="fill:max(d;4px):grow"/>
+                            <colspec value="left:4dlu:noGrow"/>
+                            <colspec value="fill:max(d;4px):noGrow"/>
                             <constraints>
                               <grid row="4" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
                               <forms defaultalign-vert="false"/>
@@ -324,6 +339,15 @@
                                 </constraints>
                                 <properties>
                                   <text value="用户空间内存"/>
+                                </properties>
+                              </component>
+                              <component id="814b6" class="javax.swing.JLabel" binding="usrMemLabel">
+                                <constraints>
+                                  <grid row="0" column="4" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                                  <forms/>
+                                </constraints>
+                                <properties>
+                                  <text value="（0 Bytes / 0 Bytes）"/>
                                 </properties>
                               </component>
                             </children>
@@ -531,7 +555,7 @@
                   <grid id="da2b3" layout-manager="FormLayout">
                     <rowspec value="center:78px:noGrow"/>
                     <rowspec value="top:5px:noGrow"/>
-                    <rowspec value="center:max(d;4px):noGrow"/>
+                    <rowspec value="center:max(d;4px):grow"/>
                     <colspec value="fill:8px:noGrow"/>
                     <colspec value="left:8px:noGrow"/>
                     <colspec value="fill:d:grow"/>
@@ -592,11 +616,15 @@
                             <rowspec value="center:d:grow"/>
                             <colspec value="fill:72px:noGrow"/>
                             <colspec value="left:5px:noGrow"/>
-                            <colspec value="fill:60px:noGrow"/>
+                            <colspec value="fill:50px:noGrow"/>
                             <colspec value="left:5px:noGrow"/>
                             <colspec value="fill:107px:noGrow"/>
                             <colspec value="left:5px:noGrow"/>
-                            <colspec value="fill:59px:noGrow"/>
+                            <colspec value="fill:50px:noGrow"/>
+                            <colspec value="left:4px:noGrow"/>
+                            <colspec value="fill:d:noGrow"/>
+                            <colspec value="left:4px:noGrow"/>
+                            <colspec value="fill:60px:noGrow"/>
                             <colspec value="left:4px:noGrow"/>
                             <colspec value="fill:81px:noGrow"/>
                             <colspec value="left:4px:noGrow"/>
@@ -646,11 +674,29 @@
                               </component>
                               <component id="da770" class="javax.swing.JButton" binding="suspend">
                                 <constraints>
-                                  <grid row="0" column="8" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+                                  <grid row="0" column="12" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
                                   <forms/>
                                 </constraints>
                                 <properties>
                                   <text value="挂起"/>
+                                </properties>
+                              </component>
+                              <component id="796ef" class="javax.swing.JLabel">
+                                <constraints>
+                                  <grid row="0" column="8" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                                  <forms/>
+                                </constraints>
+                                <properties>
+                                  <text value="当前运行进程指令偏移量："/>
+                                </properties>
+                              </component>
+                              <component id="6d98b" class="javax.swing.JLabel" binding="curCp">
+                                <constraints>
+                                  <grid row="0" column="10" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                                  <forms/>
+                                </constraints>
+                                <properties>
+                                  <text value="0"/>
                                 </properties>
                               </component>
                             </children>
@@ -1049,7 +1095,11 @@
                         <rowspec value="center:d:grow"/>
                         <rowspec value="top:4dlu:noGrow"/>
                         <rowspec value="center:max(d;4px):noGrow"/>
-                        <colspec value="fill:d:grow"/>
+                        <colspec value="fill:d:noGrow"/>
+                        <colspec value="left:4dlu:noGrow"/>
+                        <colspec value="fill:max(d;4px):grow"/>
+                        <colspec value="left:5dlu:noGrow"/>
+                        <colspec value="fill:d:noGrow"/>
                         <constraints>
                           <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
                           <forms defaultalign-vert="false"/>
@@ -1064,6 +1114,15 @@
                             </constraints>
                             <properties>
                               <text value="执行代码段"/>
+                            </properties>
+                          </component>
+                          <component id="8d428" class="javax.swing.JButton" binding="addCode">
+                            <constraints>
+                              <grid row="2" column="4" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+                              <forms/>
+                            </constraints>
+                            <properties>
+                              <text value="添加"/>
                             </properties>
                           </component>
                         </children>
@@ -1169,13 +1228,13 @@
                         <properties/>
                         <border type="none"/>
                         <children>
-                          <component id="25658" class="javax.swing.JLabel">
+                          <component id="25658" class="javax.swing.JLabel" binding="priorLabel">
                             <constraints>
                               <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
                               <forms/>
                             </constraints>
                             <properties>
-                              <text value="优先级（0 - 20）"/>
+                              <text value="优先级（0 - ?）"/>
                             </properties>
                           </component>
                         </children>

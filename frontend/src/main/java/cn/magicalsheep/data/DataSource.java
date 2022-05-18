@@ -9,6 +9,9 @@ import org.zeromq.ZMQ;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class DataSource {
 
@@ -36,7 +39,15 @@ public class DataSource {
         return system;
     }
 
-    public synchronized static void updateSystemInfo() {
+    private static final ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
+
+    private static final ReentrantLock lock = new ReentrantLock();
+
+    public static void updateSystemInfo() {
+
+        if (!lock.tryLock())
+            return;
+
         String json = send("b");
         SystemInfo res = gson.fromJson(json, SystemInfo.class);
         system.setCpuCnt(res.getCpuCnt());
@@ -44,6 +55,9 @@ public class DataSource {
         system.setJobCnt(res.getJobCnt());
         system.setProcCnt(res.getProcCnt());
         system.setRunProcCnt(res.getRunProcCnt());
+        system.setMaxSysMem(res.getMaxSysMem());
+        system.setMaxUsrMem(res.getMaxUsrMem());
+        system.setMaxPrior(res.getMaxPrior());
         List<CompletableFuture<?>> futures = new ArrayList<>();
         for (int i = 0; i < res.getCpuCnt(); i++)
             futures.add(getProcessorInfo(i));
@@ -70,6 +84,8 @@ public class DataSource {
             system.setSuspendQueue(suspendQueue.get());
         } catch (Exception ignored) {
         }
+
+        lock.unlock();
     }
 
     private static CompletableFuture<Processor> getProcessorInfo(int id) {
@@ -87,7 +103,7 @@ public class DataSource {
                 return null;
             }
             return ret;
-        });
+        }, executor);
     }
 
     private static CompletableFuture<List<Memory>> getUsrMemory() {
@@ -95,7 +111,7 @@ public class DataSource {
             String json = send("2");
             return gson.fromJson(json, new TypeToken<List<Memory>>() {
             }.getType());
-        });
+        }, executor);
     }
 
     private static CompletableFuture<List<Memory>> getSysMemory() {
@@ -103,7 +119,7 @@ public class DataSource {
             String json = send("3");
             return gson.fromJson(json, new TypeToken<List<Memory>>() {
             }.getType());
-        });
+        }, executor);
     }
 
     private static CompletableFuture<List<Task>> getTaskQueue(int cpuId) {
@@ -111,7 +127,7 @@ public class DataSource {
             String json = send("7" + cpuId);
             return gson.fromJson(json, new TypeToken<List<Task>>() {
             }.getType());
-        });
+        }, executor);
     }
 
     private static CompletableFuture<List<Task>> getIoQueue(int cpuId) {
@@ -119,7 +135,7 @@ public class DataSource {
             String json = send("8" + cpuId);
             return gson.fromJson(json, new TypeToken<List<Task>>() {
             }.getType());
-        });
+        }, executor);
     }
 
     private static CompletableFuture<List<Task>> getSuspendQueue() {
@@ -127,7 +143,7 @@ public class DataSource {
             String json = send("6");
             return gson.fromJson(json, new TypeToken<List<Task>>() {
             }.getType());
-        });
+        }, executor);
     }
 
     private static CompletableFuture<List<Job>> getJobList() {
@@ -135,7 +151,7 @@ public class DataSource {
             String json = send("9");
             return gson.fromJson(json, new TypeToken<List<Job>>() {
             }.getType());
-        });
+        }, executor);
     }
 
     private static CompletableFuture<List<Job>> getJobResList() {
@@ -143,7 +159,33 @@ public class DataSource {
             String json = send("1");
             return gson.fromJson(json, new TypeToken<List<Job>>() {
             }.getType());
+        }, executor);
+    }
+
+    public static void suspendProcess(int cpuId) {
+        executor.submit(() -> {
+            send("4" + cpuId);
         });
+    }
+
+    public static void unsuspendProcess(int pid) {
+        executor.submit(() -> {
+            send("5" + pid);
+        });
+    }
+
+    public static void submitJob(int siz, int prior, List<Command> commands) {
+        executor.submit(() -> {
+            StringBuilder msg = new StringBuilder(String.format("0%d,%d,", siz, prior));
+            for (int i = 0; i < commands.size(); i++) {
+                Command c = commands.get(i);
+                msg.append(c.getType()).append(c.getTimes());
+                if (i != commands.size() - 1)
+                    msg.append(',');
+            }
+            send(msg.toString());
+        });
+
     }
 
 }

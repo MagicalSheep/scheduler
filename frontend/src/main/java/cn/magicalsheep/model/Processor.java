@@ -17,5 +17,7 @@ public class Processor {
     private int taskCnt;
     @SerializedName("cur")
     private int curPid;
+    @SerializedName("cur_cp")
+    private int curCp;
     private List<Task> queue, ioQueue;
 }

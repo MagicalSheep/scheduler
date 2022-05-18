@@ -25,9 +25,11 @@ public class SystemInfo {
     @SerializedName("job_cnt")
     private int jobCnt;
     @SerializedName("max_sys_mem")
-    private int maxSysMem;
+    private long maxSysMem;
     @SerializedName("max_usr_mem")
-    private int maxUsrMem;
+    private long maxUsrMem;
+    @SerializedName("max_prior")
+    private int maxPrior;
     private Map<Integer, Processor> processors = new HashMap<>();
     private List<Job> jobList = new ArrayList<>(), jobResList = new ArrayList<>();
     private List<Task> suspendQueue = new ArrayList<>();

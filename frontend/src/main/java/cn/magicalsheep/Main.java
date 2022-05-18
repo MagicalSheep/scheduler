@@ -7,9 +7,13 @@ import com.formdev.flatlaf.FlatLightLaf;
 import javax.swing.*;
 import java.util.Date;
 import java.util.TimerTask;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 
 public class Main {
+
+    private static final ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
+
     public static void main(String[] args) {
         FlatLightLaf.setup();
 
@@ -25,12 +29,9 @@ public class Main {
         timer.schedule(new TimerTask() {
             @Override
             public void run() {
-                CompletableFuture.runAsync(DataSource::updateSystemInfo);
+                executor.submit(DataSource::updateSystemInfo);
                 SwingUtilities.invokeLater(() -> home.updateUI(DataSource.getSystemInfo()));
             }
-        }, new Date(), 100);
-
-
-
+        }, new Date(), 700);
     }
 }
