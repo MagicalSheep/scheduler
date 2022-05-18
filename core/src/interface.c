@@ -1,3 +1,4 @@
+#include <czmq.h>
 #include <interface.h>
 #include <memory.h>
 #include <netinet/in.h>
@@ -10,186 +11,147 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#define POOL_SIZE 20
 #define BUF_SIZE 655350
-
-static int PORT = 8080, boss_fd;
+#define ADDRESS "tcp://*:8080"
 
 /**
  * Parse the command from socket and execute the command
  */
-void interface_work(void *args)
+void interface_work(void *context)
 {
-    int fd = *((int *)args);
-    char buf[BUF_SIZE];
-    ssize_t rret;
-    if ((rret = recv(fd, buf, BUF_SIZE, 0)) <= 0)
-        goto ed;
-    buf[rret] = '\0';
-    switch (buf[0])
+    void *receiver = zmq_socket(context, ZMQ_REP);
+    zmq_connect(receiver, "inproc://workers");
+    struct sys_info_t *sys_ptr = (struct sys_info_t *)(get_sys_mem().st);
+    while (1)
     {
-    case '0': // submit job
-    {
-        char *s = buf + 1;
-        struct cmd_struct cmds[100];
-        size_t mem_siz = -1;
-        int cmd_cnt = 0, prior = -1;
-        for (char *p = strtok(s, ","); p != NULL; p = strtok(NULL, ","))
+        char *str = zstr_recv(receiver);
+        switch (str[0])
         {
-            char *tmp;
-            if (mem_siz == -1)
+        case '0': // submit job
+        {
+            char *s = str + 1;
+            struct cmd_struct cmds[100];
+            size_t mem_siz = -1;
+            int cmd_cnt = 0, prior = -1;
+            for (char *p = strtok(s, ","); p != NULL; p = strtok(NULL, ","))
             {
-                mem_siz = strtol(p, &tmp, 10);
-                continue;
+                char *tmp;
+                if (mem_siz == -1)
+                {
+                    mem_siz = strtol(p, &tmp, 10);
+                    continue;
+                }
+                if (prior == -1)
+                {
+                    prior = strtol(p, &tmp, 10);
+                    continue;
+                }
+                cmds[cmd_cnt].type = p[0] - '0';
+                ++p;
+                cmds[cmd_cnt++].times = strtol(p, &tmp, 10);
             }
-            if (prior == -1)
-            {
-                prior = strtol(p, &tmp, 10);
-                continue;
-            }
-            cmds[cmd_cnt].type = p[0] - '0';
-            ++p;
-            cmds[cmd_cnt++].times = strtol(p, &tmp, 10);
-        }
 
-        create_job(mem_siz, prior, cmds, cmd_cnt);
-        s = "{\"code\": 200, \"msg\": \"Submit job successfully\"}";
-        send(fd, s, strlen(s), 0);
-        break;
-    }
-    case '1': // job result
-    {
-        struct sys_info_t *sys_ptr = (struct sys_info_t *)(get_sys_mem().st);
-        struct job_struct_list *ptr = sys_ptr->job_res.head;
-        if (sys_ptr->job_res.size == 0)
-        {
-            char *s = "[]";
-            send(fd, s, strlen(s), 0);
+            create_job(mem_siz, prior, cmds, cmd_cnt);
+            s = "{\"code\": 200, \"msg\": \"Submit job successfully\"}";
+            zstr_send(receiver, s);
             break;
         }
-        char job_info[256];
-        buf[0] = '[';
-        buf[1] = '\0';
-        while (ptr != NULL)
+        case '1': // job result
         {
-            sprintf(job_info, "{\"id\": %d, \"siz\": %ld, \"prior\": %d, \"status\": %d, \"msg\": \"%s\"},",
-                    ptr->val->id, ptr->val->siz, ptr->val->prior, ptr->val->status, ptr->val->msg);
-            strcat(buf, job_info);
-            ptr = ptr->nex;
-        }
-        size_t len = strlen(buf);
-        buf[len - 1] = ']';
-        send(fd, buf, len, 0);
-        break;
-    }
-    case '2': // user memory
-    {
-        struct mem_list *ptr = get_mem_list();
-        char mem_info[256];
-        buf[0] = '[';
-        buf[1] = '\0';
-        while (ptr != NULL)
-        {
-            sprintf(mem_info, "{\"pid\": %d, \"st\": \"%p\", \"ed\": \"%p\"},", ptr->pid, ptr->mem.st, ptr->mem.ed);
-            strcat(buf, mem_info);
-            ptr = ptr->nex;
-        }
-        size_t len = strlen(buf);
-        buf[len - 1] = ']';
-        send(fd, buf, len, 0);
-        break;
-    }
-    case '3': // system memory
-    {
-        struct mem_list *ptr = get_sys_mem_list();
-        char mem_info[256];
-        buf[0] = '[';
-        buf[1] = '\0';
-        while (ptr != NULL)
-        {
-            sprintf(mem_info, "{\"pid\": %d, \"st\": \"%p\", \"ed\": \"%p\"},", ptr->pid, ptr->mem.st, ptr->mem.ed);
-            strcat(buf, mem_info);
-            ptr = ptr->nex;
-        }
-        size_t len = strlen(buf);
-        buf[len - 1] = ']';
-        send(fd, buf, len, 0);
-        break;
-    }
-    case '4': // suspend process
-    {
-        char *s = buf + 1, *tmp;
-        int cpu_id = strtol(s, &tmp, 10);
-        int status = suspend_process(cpu_id);
-        if (status == -1)
-            s = "{\"code\": 500, \"msg\": \"Invalid CPU id\"}";
-        else if (status == -2)
-            s = "{\"code\": 500, \"msg\": \"No running process on this CPU now\"}";
-        else
-            s = "{\"code\": 200, \"msg\": \"Suspend process successfully\"}";
-        send(fd, s, strlen(s), 0);
-        break;
-    }
-    case '5': // unsuspend process
-    {
-        char *s = buf + 1, *tmp;
-        pid_t pid = strtol(s, &tmp, 10);
-        int status = unsuspend_process(pid);
-        if (status == -1)
-            s = "{\"code\": 500, \"msg\": \"Invalid process or it is not suspended\"}";
-        else
-            s = "{\"code:\": 200, \"msg\": \"Unsuspend process successfully\"}";
-        send(fd, s, strlen(s), 0);
-        break;
-    }
-    case '6': // show suspended process
-    {
-        struct sys_info_t *sys_ptr = (struct sys_info_t *)(get_sys_mem().st);
-        struct task_struct_list *ptr = sys_ptr->suspend_queue.head;
-        if (sys_ptr->suspend_queue.size == 0)
-        {
-            char *s = "[]";
-            send(fd, s, strlen(s), 0);
+            struct job_struct_list *ptr = sys_ptr->job_res.head;
+            if (sys_ptr->job_res.size == 0)
+            {
+                zstr_send(receiver, "[]");
+                break;
+            }
+            char job_info[256], buf[BUF_SIZE];
+            buf[0] = '[';
+            buf[1] = '\0';
+            while (ptr != NULL)
+            {
+                sprintf(job_info, "{\"id\": %d, \"siz\": %ld, \"prior\": %d, \"status\": %d, \"msg\": \"%s\"},",
+                        ptr->val->id, ptr->val->siz, ptr->val->prior, ptr->val->status, ptr->val->msg);
+                strcat(buf, job_info);
+                ptr = ptr->nex;
+            }
+            size_t len = strlen(buf);
+            buf[len - 1] = ']';
+            zstr_send(receiver, buf);
             break;
         }
-        buf[0] = '[';
-        buf[1] = '\0';
-        char task_info[512];
-        while (ptr != NULL)
+        case '2': // user memory
         {
-            sprintf(task_info, "{\"pid\": %d, \"status\": %ld, \"st\": \"%p\", \"ed\": \"%p\", \"cp\": %d, \"prior\": %d, \"processor\": %d, \"job\": %d},",
-                    ptr->val->pid, ptr->val->state, ptr->val->addr_limit.st, ptr->val->addr_limit.ed, ptr->val->mm.cp,
-                    ptr->val->prio, ptr->val->processor, ptr->val->job->id);
-            strcat(buf, task_info);
-            ptr = ptr->nex;
-        }
-        size_t len = strlen(buf);
-        buf[len - 1] = ']';
-        send(fd, buf, len, 0);
-        break;
-    }
-    case '7': // show priority queue
-    {
-        char *s = buf + 1, *tmp;
-        int cpu_id = strtol(s, &tmp, 10);
-        struct sys_info_t *sys_ptr = (struct sys_info_t *)(get_sys_mem().st);
-        if (cpu_id >= sys_ptr->cpu_cnt)
-        {
-            s = "{}";
-            send(fd, s, strlen(s), 0);
+            struct mem_list *ptr = get_mem_list();
+            char mem_info[256], buf[BUF_SIZE];
+            buf[0] = '[';
+            buf[1] = '\0';
+            while (ptr != NULL)
+            {
+                sprintf(mem_info, "{\"pid\": %d, \"st\": \"%p\", \"ed\": \"%p\"},", ptr->pid, ptr->mem.st, ptr->mem.ed);
+                strcat(buf, mem_info);
+                ptr = ptr->nex;
+            }
+            size_t len = strlen(buf);
+            buf[len - 1] = ']';
+            zstr_send(receiver, buf);
             break;
         }
-        struct task_struct_head *list = sys_ptr->processors[cpu_id].rq;
-        size_t len;
-        buf[0] = '{';
-        buf[1] = '\0';
-        char task_info[512];
-        for (int i = MAX_PRIOR; i >= 0; i--)
+        case '3': // system memory
         {
-            if (list[i].size == 0)
-                continue;
-            sprintf(task_info, "\"%d: \"[", i);
-            strcat(buf, task_info);
-            struct task_struct_list *ptr = list[i].head;
+            struct mem_list *ptr = get_sys_mem_list();
+            char mem_info[256], buf[BUF_SIZE];
+            buf[0] = '[';
+            buf[1] = '\0';
+            while (ptr != NULL)
+            {
+                sprintf(mem_info, "{\"pid\": %d, \"st\": \"%p\", \"ed\": \"%p\"},", ptr->pid, ptr->mem.st, ptr->mem.ed);
+                strcat(buf, mem_info);
+                ptr = ptr->nex;
+            }
+            size_t len = strlen(buf);
+            buf[len - 1] = ']';
+            zstr_send(receiver, buf);
+            break;
+        }
+        case '4': // suspend process
+        {
+            char *s = str + 1, *tmp;
+            int cpu_id = strtol(s, &tmp, 10);
+            int status = suspend_process(cpu_id);
+            if (status == -1)
+                s = "{\"code\": 500, \"msg\": \"Invalid CPU id\"}";
+            else if (status == -2)
+                s = "{\"code\": 500, \"msg\": \"No running process on this CPU now\"}";
+            else
+                s = "{\"code\": 200, \"msg\": \"Suspend process successfully\"}";
+            zstr_send(receiver, s);
+            break;
+        }
+        case '5': // unsuspend process
+        {
+            char *s = str + 1, *tmp;
+            pid_t pid = strtol(s, &tmp, 10);
+            int status = unsuspend_process(pid);
+            if (status == -1)
+                s = "{\"code\": 500, \"msg\": \"Invalid process or it is not suspended\"}";
+            else
+                s = "{\"code:\": 200, \"msg\": \"Unsuspend process successfully\"}";
+            zstr_send(receiver, s);
+            break;
+        }
+        case '6': // show suspended process
+        {
+            struct task_struct_list *ptr = sys_ptr->suspend_queue.head;
+            if (sys_ptr->suspend_queue.size == 0)
+            {
+                zstr_send(receiver, "[]");
+                break;
+            }
+            char buf[BUF_SIZE];
+            buf[0] = '[';
+            buf[1] = '\0';
+            char task_info[512];
             while (ptr != NULL)
             {
                 sprintf(task_info, "{\"pid\": %d, \"status\": %ld, \"st\": \"%p\", \"ed\": \"%p\", \"cp\": %d, \"prior\": %d, \"processor\": %d, \"job\": %d},",
@@ -198,138 +160,157 @@ void interface_work(void *args)
                 strcat(buf, task_info);
                 ptr = ptr->nex;
             }
-            len = strlen(buf);
+            size_t len = strlen(buf);
             buf[len - 1] = ']';
-            buf[len] = ',';
-        }
-        len = strlen(buf);
-        if (len == 1)
-        {
-            s = "{}";
-            send(fd, s, strlen(s), 0);
+            zstr_send(receiver, buf);
             break;
         }
-        buf[len - 1] = '}';
-        send(fd, buf, len, 0);
-        break;
-    }
-    case '8': // show io queue
-    {
-        char *s = buf + 1, *tmp;
-        int cpu_id = strtol(s, &tmp, 10);
-        struct sys_info_t *sys_ptr = (struct sys_info_t *)(get_sys_mem().st);
-        if (cpu_id >= sys_ptr->cpu_cnt || sys_ptr->processors[cpu_id].iorq.size == 0)
+        case '7': // show priority queue
         {
-            s = "[]";
-            send(fd, s, strlen(s), 0);
+            char *s = str + 1, *tmp;
+            int cpu_id = strtol(s, &tmp, 10);
+            if (cpu_id >= sys_ptr->cpu_cnt)
+            {
+                zstr_send(receiver, "{\"data\": {}}");
+                break;
+            }
+            struct processor *pros = &(sys_ptr->processors[cpu_id]);
+            struct task_struct_head *list = pros->rq;
+            size_t len;
+            char buf[BUF_SIZE];
+            buf[0] = '\0';
+            strcat(buf, "{\"data\": {");
+            char task_info[512];
+            for (int i = MAX_PRIOR; i >= 0; i--)
+            {
+                if (list[i].size == 0)
+                    continue;
+                sprintf(task_info, "%d: [", i);
+                strcat(buf, task_info);
+                struct task_struct_list *ptr = list[i].head;
+                while (ptr != NULL)
+                {
+                    sprintf(task_info, "{\"pid\": %d, \"status\": %ld, \"st\": \"%p\", \"ed\": \"%p\", \"cp\": %d, \"prior\": %d, \"processor\": %d, \"job\": %d},",
+                            ptr->val->pid, ptr->val->state, ptr->val->addr_limit.st, ptr->val->addr_limit.ed, ptr->val->mm.cp,
+                            ptr->val->prio, ptr->val->processor, ptr->val->job->id);
+                    strcat(buf, task_info);
+                    ptr = ptr->nex;
+                }
+                len = strlen(buf);
+                buf[len - 1] = ']';
+                buf[len] = ',';
+            }
+            len = strlen(buf);
+            if (len == 10)
+            {
+                zstr_send(receiver, "{}");
+                break;
+            }
+            buf[len - 1] = '}';
+            buf[len] = '}';
+            buf[len + 1] = '\0';
+            zstr_send(receiver, buf);
             break;
         }
-        struct task_struct_list *ptr = sys_ptr->processors[cpu_id].iorq.head;
-        buf[0] = '[';
-        buf[1] = '\0';
-        char task_info[512];
-        while (ptr != NULL)
+        case '8': // show io queue
         {
-            sprintf(task_info, "{\"pid\": %d, \"status\": %ld, \"st\": \"%p\", \"ed\": \"%p\", \"cp\": %d, \"prior\": %d, \"processor\": %d, \"job\": %d},",
-                    ptr->val->pid, ptr->val->state, ptr->val->addr_limit.st, ptr->val->addr_limit.ed, ptr->val->mm.cp,
-                    ptr->val->prio, ptr->val->processor, ptr->val->job->id);
-            strcat(buf, task_info);
-            ptr = ptr->nex;
-        }
-        size_t len = strlen(buf);
-        buf[len - 1] = ']';
-        send(fd, buf, len, 0);
-        break;
-    }
-    case '9': // show pool queue
-    {
-        struct sys_info_t *sys_ptr = (struct sys_info_t *)(get_sys_mem().st);
-        struct job_struct_list *ptr = sys_ptr->pool_queue.head;
-        if (sys_ptr->pool_queue.size == 0)
-        {
-            char *s = "[]";
-            send(fd, s, strlen(s), 0);
+            char *s = str + 1, *tmp;
+            int cpu_id = strtol(s, &tmp, 10);
+            if (cpu_id >= sys_ptr->cpu_cnt || sys_ptr->processors[cpu_id].iorq.size == 0)
+            {
+                zstr_send(receiver, "[]");
+                break;
+            }
+            struct task_struct_list *ptr = sys_ptr->processors[cpu_id].iorq.head;
+            char buf[BUF_SIZE];
+            buf[0] = '[';
+            buf[1] = '\0';
+            char task_info[512];
+            while (ptr != NULL)
+            {
+                sprintf(task_info, "{\"pid\": %d, \"status\": %ld, \"st\": \"%p\", \"ed\": \"%p\", \"cp\": %d, \"prior\": %d, \"processor\": %d, \"job\": %d},",
+                        ptr->val->pid, ptr->val->state, ptr->val->addr_limit.st, ptr->val->addr_limit.ed, ptr->val->mm.cp,
+                        ptr->val->prio, ptr->val->processor, ptr->val->job->id);
+                strcat(buf, task_info);
+                ptr = ptr->nex;
+            }
+            size_t len = strlen(buf);
+            buf[len - 1] = ']';
+            zstr_send(receiver, buf);
             break;
         }
-        char job_info[256];
-        buf[0] = '[';
-        buf[1] = '\0';
-        while (ptr != NULL)
+        case '9': // show pool queue
         {
-            sprintf(job_info, "{\"id\": %d, \"siz\": %ld, \"prior\": %d, \"status\": %d, \"msg\": \"%s\"},",
-                    ptr->val->id, ptr->val->siz, ptr->val->prior, ptr->val->status, ptr->val->msg);
-            strcat(buf, job_info);
-            ptr = ptr->nex;
-        }
-        size_t len = strlen(buf);
-        buf[len - 1] = ']';
-        send(fd, buf, len, 0);
-        break;
-    }
-    case 'a': // show processor info
-    {
-        char *s = buf + 1, *tmp;
-        int cpu_id = strtol(s, &tmp, 10);
-        struct sys_info_t *sys_ptr = (struct sys_info_t *)(get_sys_mem().st);
-        if (cpu_id >= sys_ptr->cpu_cnt)
-        {
-            s = "{\"code\": 500, \"msg\": \"Invalid CPU id\"}";
-            send(fd, s, strlen(s), 0);
+            struct job_struct_list *ptr = sys_ptr->pool_queue.head;
+            if (sys_ptr->pool_queue.size == 0)
+            {
+                zstr_send(receiver, "[]");
+                break;
+            }
+            char job_info[256], buf[BUF_SIZE];
+            buf[0] = '[';
+            buf[1] = '\0';
+            while (ptr != NULL)
+            {
+                sprintf(job_info, "{\"id\": %d, \"siz\": %ld, \"prior\": %d, \"status\": %d, \"msg\": \"%s\"},",
+                        ptr->val->id, ptr->val->siz, ptr->val->prior, ptr->val->status, ptr->val->msg);
+                strcat(buf, job_info);
+                ptr = ptr->nex;
+            }
+            size_t len = strlen(buf);
+            buf[len - 1] = ']';
+            zstr_send(receiver, buf);
             break;
         }
-        struct processor *ptr = &(sys_ptr->processors[cpu_id]);
-        buf[0] = '\0';
-        sprintf(buf, "{\"code\": 200, \"id\": %d, \"task_cnt\": %d, \"cur\": %d}", ptr->cores_id, ptr->tasks_cnt, ptr->cur->pid);
-        send(fd, buf, strlen(buf), 0);
-        break;
-    }
-    case 'b': // show system info
-    {
-        struct sys_info_t *sys_ptr = (struct sys_info_t *)(get_sys_mem().st);
-        buf[0] = '\0';
-        sprintf(buf, "{\"cpu_cnt\": %d, \"pid_cnt\": %d, \"proc_cnt\": %d, \"run_proc_cnt\": %d, \"job_cnt\": %d}",
-                sys_ptr->cpu_cnt, sys_ptr->pid_cnt, sys_ptr->proc_cnt, sys_ptr->run_proc_cnt, sys_ptr->job_cnt);
-        send(fd, buf, strlen(buf), 0);
-        break;
-    }
-    default:
-    {
-        char *s = "{\"code\": 500, \"msg\": \"Invalid command\"}";
-        send(fd, s, strlen(s), 0);
-    }
+        case 'a': // show processor info
+        {
+            char *s = str + 1, *tmp;
+            int cpu_id = strtol(s, &tmp, 10);
+            if (cpu_id >= sys_ptr->cpu_cnt)
+            {
+                zstr_send(receiver, "{\"code\": 500, \"msg\": \"Invalid CPU id\"}");
+                break;
+            }
+            struct processor *ptr = &(sys_ptr->processors[cpu_id]);
+            zstr_sendf(receiver, "{\"code\": 200, \"id\": %d, \"task_cnt\": %d, \"cur\": %d}", ptr->cores_id, ptr->tasks_cnt, (ptr->cur == NULL) ? -1 : ptr->cur->pid);
+            break;
+        }
+        case 'b': // show system info
+        {
+            zstr_sendf(receiver, "{\"cpu_cnt\": %d, \"pid_cnt\": %d, \"proc_cnt\": %d, \"run_proc_cnt\": %d, \"job_cnt\": %d, \"max_sys_mem\": %d, \"max_usr_mem\": %d}",
+                       sys_ptr->cpu_cnt, sys_ptr->pid_cnt, sys_ptr->proc_cnt, sys_ptr->run_proc_cnt, sys_ptr->job_cnt, SYS_MEM_BYTES, MEM_BYTES - SYS_MEM_BYTES);
+            break;
+        }
+        default:
+        {
+            zstr_send(receiver, "{\"code\": 500, \"msg\": \"Invalid command\"}");
+        }
+        }
+        zstr_free(&str);
     }
 ed:
-    close(fd);
+    zmq_close(receiver);
 }
 
-int init_interface()
+void init_interface()
 {
-    struct sys_info_t *sys_ptr = (struct sys_info_t *)(get_sys_mem()).st;
-    boss_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (boss_fd == -1)
-        return -1;
-    struct sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    server_addr.sin_port = htons(PORT);
-    int opt = 1;
-    if (setsockopt(boss_fd, SOL_SOCKET, SO_REUSEADDR, (const void *)&opt, sizeof(opt)) < 0)
-        return -1;
-    if (bind(boss_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1)
-        return -1;
-    if (listen(boss_fd, 100) == -1)
-        return -1;
-    while (1)
+    void *context = zmq_ctx_new();
+    void *clients = zmq_socket(context, ZMQ_ROUTER);
+    zmq_bind(clients, ADDRESS);
+    void *workers = zmq_socket(context, ZMQ_DEALER);
+    zmq_bind(workers, "inproc://workers");
+
+    for (int i = 0; i < POOL_SIZE; i++)
     {
-        int fd = accept(boss_fd, (struct sockaddr *)NULL, NULL);
-        if (fd == -1)
-            return -1;
-        pthread_t pid;
-        if (pthread_create(&pid, NULL, (void *)interface_work, (void *)(&fd)) != 0)
-            return -1;
-        pthread_detach(pid);
+        pthread_t tid;
+        pthread_create(&tid, NULL, (void *)interface_work, context);
     }
-    return 0;
+    zmq_proxy(clients, workers, NULL);
+
+    // never get here, but clean up anyhow
+    zmq_close(clients);
+    zmq_close(workers);
+    zmq_ctx_destroy(context);
 }
 
 int create_job(size_t mem_size, int prior, struct cmd_struct *cmd_seq, int cmd_cnt)

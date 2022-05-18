@@ -8,7 +8,7 @@
 /**
  * Open a socket shell to control the system
  */
-int init_interface();
+void init_interface();
 
 /**
  * This function is the entry to create a job

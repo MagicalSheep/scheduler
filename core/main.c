@@ -57,7 +57,10 @@ int init()
         if (pthread_create(&sys_ptr->processors[i].tid, NULL, (void *)work, (void *)(&sys_ptr->processors[i])) < 0)
             return -1;
     }
-    return init_interface(); // blocked until error happend
+    pthread_t tid;
+    pthread_create(&tid, NULL, (void *)init_interface, NULL);
+    pthread_detach(tid);
+    return 0;
 }
 
 int main(int argc, char const *argv[])
@@ -76,6 +79,8 @@ int main(int argc, char const *argv[])
     // init system
     if (init() < 0)
         goto error;
+    while (1)
+        ;
 
 success:
     exit(EXIT_SUCCESS);
