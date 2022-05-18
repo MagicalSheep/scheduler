@@ -1,7 +1,7 @@
 #ifndef _MEMORY_H_
 #define _MEMORY_H_
-#define MEM_BYTES 64000000
-#define SYS_MEM_BYTES 16000000
+#define MEM_BYTES 64000
+#define SYS_MEM_BYTES 16000
 #include <sys/types.h>
 
 struct mm_segment_t

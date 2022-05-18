@@ -12,7 +12,7 @@
 #define JOB_READY 1
 #define JOB_COMPLETED 2
 #define JOB_FAILED 3
-#define MAX_PRIOR 2
+#define MAX_PRIOR 60
 #include "command.h"
 #include <sys/types.h>
 

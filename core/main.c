@@ -10,7 +10,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #define INTERVAL_SECONDS 1
-#define CORES_COUNT 1
+#define CORES_COUNT 2
 #define PROC_COUNT 10
 
 pthread_t mtid, iotid;

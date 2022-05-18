@@ -265,13 +265,14 @@ void interface_work(void *context)
                 break;
             }
             struct processor *ptr = &(sys_ptr->processors[cpu_id]);
-            zstr_sendf(receiver, "{\"code\": 200, \"id\": %d, \"task_cnt\": %d, \"cur\": %d}", ptr->cores_id, ptr->tasks_cnt, (ptr->cur == NULL) ? -1 : ptr->cur->pid);
+            zstr_sendf(receiver, "{\"code\": 200, \"id\": %d, \"task_cnt\": %d, \"cur\": %d, \"cur_cp\": %d}",
+                       ptr->cores_id, ptr->tasks_cnt, (ptr->cur == NULL) ? -1 : ptr->cur->pid, (ptr->cur == NULL) ? -1 : ptr->cur->mm.cp);
             break;
         }
         case 'b': // show system info
         {
-            zstr_sendf(receiver, "{\"cpu_cnt\": %d, \"pid_cnt\": %d, \"proc_cnt\": %d, \"run_proc_cnt\": %d, \"job_cnt\": %d, \"max_sys_mem\": %d, \"max_usr_mem\": %d}",
-                       sys_ptr->cpu_cnt, sys_ptr->pid_cnt, sys_ptr->proc_cnt, sys_ptr->run_proc_cnt, sys_ptr->job_cnt, SYS_MEM_BYTES, MEM_BYTES - SYS_MEM_BYTES);
+            zstr_sendf(receiver, "{\"cpu_cnt\": %d, \"pid_cnt\": %d, \"proc_cnt\": %d, \"run_proc_cnt\": %d, \"job_cnt\": %d, \"max_sys_mem\": %d, \"max_usr_mem\": %d, \"max_prior\": %d}",
+                       sys_ptr->cpu_cnt, sys_ptr->pid_cnt, sys_ptr->proc_cnt, sys_ptr->run_proc_cnt, sys_ptr->job_cnt, SYS_MEM_BYTES, MEM_BYTES - SYS_MEM_BYTES, MAX_PRIOR);
             break;
         }
         default:
@@ -339,6 +340,13 @@ int create_job(size_t mem_size, int prior, struct cmd_struct *cmd_seq, int cmd_c
 
 int create_process(struct job_struct *job)
 {
+    if (job->prior > MAX_PRIOR)
+    {
+        job->status = JOB_FAILED;
+        job->msg = "Invalid process priority";
+        push_job_res(job);
+        return -1;
+    }
     struct sys_info_t *sys_ptr = (struct sys_info_t *)(get_sys_mem().st);
     if ((job->cmd_cnt * sizeof(struct cmd_struct)) > job->siz)
     {
