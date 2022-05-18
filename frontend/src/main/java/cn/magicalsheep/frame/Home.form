@@ -438,7 +438,9 @@
                                   <grid row="1" column="0" row-span="1" col-span="1" vsize-policy="7" hsize-policy="7" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
                                   <forms defaultalign-horz="false" defaultalign-vert="false"/>
                                 </constraints>
-                                <properties/>
+                                <properties>
+                                  <enabled value="true"/>
+                                </properties>
                                 <border type="none"/>
                                 <children>
                                   <component id="8f2af" class="javax.swing.JTable" binding="poolQueue">
@@ -567,14 +569,14 @@
                             <properties/>
                             <border type="none"/>
                             <children>
-                              <component id="5c814" class="javax.swing.JLabel">
+                              <component id="5c814" class="javax.swing.JLabel" binding="cpuName">
                                 <constraints>
                                   <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
                                   <forms/>
                                 </constraints>
                                 <properties>
                                   <font size="20"/>
-                                  <text value="CPU0"/>
+                                  <text value="无处理机"/>
                                 </properties>
                               </component>
                               <component id="bad74" class="javax.swing.JComboBox" binding="comboBox1" default-binding="true">
@@ -992,7 +994,9 @@
                             <children>
                               <component id="37e18" class="javax.swing.JTable" binding="systemMemoryDetail">
                                 <constraints/>
-                                <properties/>
+                                <properties>
+                                  <focusable value="true"/>
+                                </properties>
                               </component>
                             </children>
                           </scrollpane>
