@@ -136,7 +136,6 @@ public class Home {
 
         poolQueue.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         jobResQueue.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        jobResQueue.setAutoCreateRowSorter(true);
         priorityQueue.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         ioQueue.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         suspendQueue.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
