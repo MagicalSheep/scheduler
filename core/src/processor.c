@@ -76,9 +76,12 @@ int do_mid_schedule(struct processor *p)
             struct task_struct *task = (struct task_struct *)_malloc(0, sizeof(struct task_struct));
             memcpy(task, sp->val, sizeof(struct task_struct));
             size_t siz = sp->val->addr_limit.ed - sp->val->addr_limit.st;
-            task->addr_limit.st = (char *)_malloc(sp->val->pid, siz);
+            char *space = (char *)_malloc(sp->val->pid, siz);
+            memcpy(space, sp->val->addr_limit.st, siz);
+            task->addr_limit.st = space;
             task->addr_limit.ed = task->addr_limit.st + siz;
             // free disk space
+            free(sp->val->addr_limit.st);
             free(sp->val);
             _sys_free(sp);
 

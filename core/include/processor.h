@@ -10,6 +10,11 @@
     {                                                                                        \
         struct task_struct *task = (struct task_struct *)malloc(sizeof(struct task_struct)); \
         memcpy(task, n_ptr->val, sizeof(struct task_struct));                                \
+        size_t len = n_ptr->val->addr_limit.ed - n_ptr->val->addr_limit.st;                  \
+        char *space = (char *)malloc(len);                                                   \
+        memcpy(space, n_ptr->val->addr_limit.st, len);                                       \
+        task->addr_limit.st = space;                                                         \
+        task->addr_limit.ed = space + len;                                                   \
         _usr_free(n_ptr->val->addr_limit.st);                                                \
         _sys_free(n_ptr->val);                                                               \
         n_ptr->val = task;                                                                   \
