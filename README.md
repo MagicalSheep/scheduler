@@ -53,11 +53,11 @@
 
 初始和终止状态并不会影响我们的实现，在接下来的讨论中我们先将它们排除。则经典的三个进程状态为就绪态、运行态、阻塞态，它们之间的状态转换关系可用下图表示：
 
-![](https://magical-sheep.oss-cn-hangzhou.aliyuncs.com/2022-5-19/107.png "三状态转换图")
+![](https://magicalsheep.cn/assets/imgs/2022-5-19/107.png "三状态转换图")
 
 从需求中可知，该系统需支持挂起与解挂功能，这就意味着我们还需要引入就绪挂起态和阻塞挂起态，此时，五个状态之间的转换关系如下图所示：
 
-![](https://magical-sheep.oss-cn-hangzhou.aliyuncs.com/2022-5-19/108.png "五状态转换图")
+![](https://magicalsheep.cn/assets/imgs/2022-5-19/108.png "五状态转换图")
 
 ## 进程运行
 
@@ -83,7 +83,7 @@
 
 由前文所述分析可知，程序在真实操作系统中所占用的内存应当作如下划分。
 
-![](https://magical-sheep.oss-cn-hangzhou.aliyuncs.com/2022-5-19/101.png "内存分布")
+![](https://magicalsheep.cn/assets/imgs/2022-5-19/101.png "内存分布")
 
 首先考虑系统空间的内存分布情况。系统空间由静态数据与动态数据组成，静态数据包括系统本身的配置属性，如处理机个数、允许在内存中运行的程序道数、当前作业数等，以及部分存放于内存或外存的内核数据结构的地址，如后备队列地址、各处理机信息地址等。由此可以构造出系统固定内存的结构体如下。
 
@@ -99,7 +99,7 @@ struct sys_info_t
 
 系统固定内存之外的部分则用于动态管理内核数据结构，如链表节点等。综上可得系统空间的内存分布如下图所示。
 
-![](https://magical-sheep.oss-cn-hangzhou.aliyuncs.com/2022-5-19/102.png "系统内存空间分布")
+![](https://magicalsheep.cn/assets/imgs/2022-5-19/102.png "系统内存空间分布")
 
 接下来考虑用户空间的内存分布情况。对于本实验而言，用户空间仅用于存放进程运行数据，动态管理其申请与回收，因此，讨论用户空间的内存分布即是讨论进程空间的组成。对于一个运行中的进程而言，我们可大致地将其分为代码段与数据段两部分（尽管在该实验中数据段可有可无），存放于系统空间中的PCB信息将确定代码段执行位置的偏移量，代码段中的指令可以访问数据段中所存储的信息。
 
@@ -149,7 +149,7 @@ struct task_struct
 
 用户空间内存可视化如下图所示。
 
-![](https://magical-sheep.oss-cn-hangzhou.aliyuncs.com/2022-5-19/103.png "用户内存空间分布")
+![](https://magicalsheep.cn/assets/imgs/2022-5-19/103.png "用户内存空间分布")
 
 至此，各部分的内存分布大体上已有了比较清晰的结构。为了能够更好地描述后续的调度流程，接下来我们将对其中一些组成部分的内存结构作出阐述，它们分别是处理机和作业。
 
@@ -172,7 +172,7 @@ struct processor
 
 这些信息存放于系统空间内存当中，在程序启动时被初始化空间，每一个处理机都有一份这样的内存结构，可视化后如下图所示。
 
-![](https://magical-sheep.oss-cn-hangzhou.aliyuncs.com/2022-5-19/104.png "处理机内存分布")
+![](https://magicalsheep.cn/assets/imgs/2022-5-19/104.png "处理机内存分布")
 
 作业结构要相对简单一些，一个作业由其所需的资源描述和程序正文组成，程序正文又由一系列指令组成，不难得到其结构体描述如下。
 
@@ -210,7 +210,7 @@ struct job_struct
 
 当进程执行到I/O指令时将进入处理机的阻塞队列，并释放处理机占用时间，此时该指令将陷入外部的I/O设备进行执行。为此，我们需要抽象一个简单的I/O处理设备，它将拥有一个自己的处理队列，每次从处理队列中取出I/O任务，执行，完成后通过中断通知处理机将相应进程移出阻塞队列，加入就绪队列接受调度，自身则继续处理下一个I/O任务。为了简单起见，我们将为全局设立一个固定的I/O设备，所有进程的I/O指令将通过该设备进行执行。
 
-![](https://magical-sheep.oss-cn-hangzhou.aliyuncs.com/2022-5-19/105.png "I/O处理过程")
+![](https://magicalsheep.cn/assets/imgs/2022-5-19/105.png "I/O处理过程")
 
 由于该设备从概念上属于外部设备，其内存由其自身管理，因此在本程序中其所有的内存占用都存放于外存当中。
 
@@ -230,7 +230,7 @@ struct job_struct
 
 程序整体的三级调度过程可用下图表示。
 
-![](https://magical-sheep.oss-cn-hangzhou.aliyuncs.com/2022-5-19/106.png "三级调度图")
+![](https://magicalsheep.cn/assets/imgs/2022-5-19/106.png "三级调度图")
 
 # 详细设计
 
@@ -477,10 +477,10 @@ int do_long_schedule(int enter_state)
 
 # 实验运行结果
 
-![](https://magical-sheep.oss-cn-hangzhou.aliyuncs.com/2022-5-19/54.png "运行结果1")
+![](https://magicalsheep.cn/assets/imgs/2022-5-19/54.png "运行结果1")
 
-![](https://magical-sheep.oss-cn-hangzhou.aliyuncs.com/2022-5-19/52.png "运行结果2")
+![](https://magicalsheep.cn/assets/imgs/2022-5-19/52.png "运行结果2")
 
-![](https://magical-sheep.oss-cn-hangzhou.aliyuncs.com/2022-5-19/51.png "运行结果3")
+![](https://magicalsheep.cn/assets/imgs/2022-5-19/51.png "运行结果3")
 
-![](https://magical-sheep.oss-cn-hangzhou.aliyuncs.com/2022-5-19/53.png "运行结果4")
+![](https://magicalsheep.cn/assets/imgs/2022-5-19/53.png "运行结果4")
